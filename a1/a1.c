@@ -170,7 +170,7 @@ int parse(const char *path)
 
     lseek(fd, -(section_file->header_size), SEEK_END);
     read(fd, &section_file->version, 4);
-    if (section_file->version < 65 || section_file->version > 122)
+    if (section_file->version < 65 || section_file->version > 112)
     {
         printf("ERROR\n");
         printf("wrong version\n");
@@ -244,10 +244,12 @@ void findall(const char *path)
                 {
                     findall(filePath);
                 }
-                else if (S_ISREG(statbuf.st_mode))
+                else
+                // if (S_ISREG(statbuf.st_mode))
                 {
                     int nr_sec;
                     int fd = -1;
+
                     fd = open(filePath, O_RDONLY);
                     if (fd == -1)
                     {
@@ -268,35 +270,35 @@ void findall(const char *path)
 
                     lseek(fd, -(section_file->header_size), SEEK_END);
                     read(fd, &section_file->version, 4);
-                    /* if (section_file->version < 65 || section_file->version > 122)
-                     {
-                         printf("ERROR\n");
-                         printf("invalid directory path\n");
-                         return;
-                     }
- */
+
+                    if (section_file->version < 65 || section_file->version > 112)
+                    {
+                        printf("ERROR\n");
+                        printf("invalid directory path\n");
+                        return;
+                    }
+
                     read(fd, &section_file->no_of_sections, 1);
 
-                    /*  if (section_file->no_of_sections < 2 || section_file->no_of_sections > 19)
-                      {
-                          printf("ERROR\n");
-                          printf("invalid directory path\n");
-                          return;
-                      }*/
+                    if (section_file->no_of_sections < 2 || section_file->no_of_sections > 19)
+                    {
+                        printf("ERROR\n");
+                        printf("invalid directory path\n");
+                        return;
+                    }
 
                     section_file->section_header = (sh *)malloc(sizeof(sh) * section_file->no_of_sections);
-                    printf("da\n");
                     for (int i = 0; i < section_file->no_of_sections; i++)
                     {
                         read(fd, section_file->section_header[i].sect_name, 10);
                         section_file->section_header[i].sect_name[10] = 0;
                         read(fd, &section_file->section_header[i].sect_type, 4);
-                        /*if (section_file->section_header[i].sect_type != 12 && section_file->section_header[i].sect_type != 67)
+                        if (section_file->section_header[i].sect_type != 12 && section_file->section_header[i].sect_type != 67)
                         {
                             printf("ERROR\n");
                             printf("invalid directory path\n");
                             return;
-                        }*/
+                        }
                         read(fd, &section_file->section_header[i].sect_offset, 4);
                         read(fd, &section_file->section_header[i].sect_size, 4);
                     }
@@ -319,9 +321,11 @@ void findall(const char *path)
                         {
                             nr_sec++;
                         }
+
+                        free(sir);
                     }
 
-                    if (nr_sec > 0)
+                    if (nr_sec >= 1)
                     {
                         printf("%s\n", filePath);
                     }
@@ -364,12 +368,17 @@ void extract(const char *path, int sectiune, int linie)
     lseek(fd, -(section_file->header_size), SEEK_END);
     read(fd, &section_file->version, 4);
 
-    if (section_file->version < 65 || section_file->version > 122)
+    if (section_file->version < 65 || section_file->version > 112)
     {
-        return ;
+        return;
     }
 
     read(fd, &section_file->no_of_sections, 1);
+
+    if (section_file->no_of_sections < 2 || section_file->no_of_sections > 19)
+    {
+        return;
+    }
 
     if (sectiune < 0 || sectiune > section_file->no_of_sections)
     {
@@ -429,6 +438,7 @@ void extract(const char *path, int sectiune, int linie)
         }
     }
 
+    free(sir);
     free(section_file->section_header);
     free(section_file);
 
