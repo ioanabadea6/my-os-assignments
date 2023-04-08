@@ -165,6 +165,7 @@ int parse(const char *path)
     {
         printf("ERROR\n");
         printf("wrong magic\n");
+        free(section_file);
         return -1;
     }
 
@@ -174,6 +175,7 @@ int parse(const char *path)
     {
         printf("ERROR\n");
         printf("wrong version\n");
+        free(section_file);
         return -1;
     }
 
@@ -182,6 +184,7 @@ int parse(const char *path)
     {
         printf("ERROR\n");
         printf("wrong sect_nr\n");
+        free(section_file);
         return -1;
     }
 
@@ -196,6 +199,8 @@ int parse(const char *path)
         {
             printf("ERROR\n");
             printf("wrong sect_types\n");
+            free(section_file->section_header);
+            free(section_file);
             return -1;
         }
         read(fd, &section_file->section_header[i].sect_offset, 4);
@@ -245,9 +250,9 @@ void findall(const char *path)
                     findall(filePath);
                 }
                 else
-                // if (S_ISREG(statbuf.st_mode))
+                //if (S_ISREG(statbuf.st_mode))
                 {
-                    int nr_sec;
+                    int nr_sec = 0;
                     int fd = -1;
 
                     fd = open(filePath, O_RDONLY);
@@ -261,10 +266,10 @@ void findall(const char *path)
                     lseek(fd, -6, SEEK_END);
                     read(fd, &section_file->header_size, 2);
                     read(fd, section_file->magic, 4);
+                    section_file->magic[4] = 0;
                     if (strcmp(section_file->magic, "rB4K") != 0)
                     {
-                        printf("ERROR\n");
-                        printf("invalid directory path\n");
+                        free(section_file);
                         return;
                     }
 
@@ -273,8 +278,7 @@ void findall(const char *path)
 
                     if (section_file->version < 65 || section_file->version > 112)
                     {
-                        printf("ERROR\n");
-                        printf("invalid directory path\n");
+                        free(section_file);
                         return;
                     }
 
@@ -282,12 +286,12 @@ void findall(const char *path)
 
                     if (section_file->no_of_sections < 2 || section_file->no_of_sections > 19)
                     {
-                        printf("ERROR\n");
-                        printf("invalid directory path\n");
+                        free(section_file);
                         return;
                     }
 
                     section_file->section_header = (sh *)malloc(sizeof(sh) * section_file->no_of_sections);
+
                     for (int i = 0; i < section_file->no_of_sections; i++)
                     {
                         read(fd, section_file->section_header[i].sect_name, 10);
@@ -295,22 +299,22 @@ void findall(const char *path)
                         read(fd, &section_file->section_header[i].sect_type, 4);
                         if (section_file->section_header[i].sect_type != 12 && section_file->section_header[i].sect_type != 67)
                         {
-                            printf("ERROR\n");
-                            printf("invalid directory path\n");
+                            free(section_file->section_header);
+                            free(section_file);
                             return;
                         }
                         read(fd, &section_file->section_header[i].sect_offset, 4);
                         read(fd, &section_file->section_header[i].sect_size, 4);
                     }
 
-                    for (int i = 0; i < section_file->no_of_sections; i++)
+                    for (int j = 0; j < section_file->no_of_sections; j++)
                     {
-                        char *sir = (char *)malloc(sizeof(char) * section_file->section_header[i].sect_size);
+                        char *sir = (char *)malloc(sizeof(char) * section_file->section_header[j].sect_size);
                         int nr_linii = 1;
 
-                        lseek(fd, section_file->section_header[i].sect_offset, SEEK_SET);
-                        read(fd, sir, section_file->section_header[i].sect_size);
-                        for (int i = 0; i < section_file->section_header[i].sect_size; i++)
+                        lseek(fd, section_file->section_header[j].sect_offset, SEEK_SET);
+                        read(fd, sir, section_file->section_header[j].sect_size);
+                        for (int i = 0; i < section_file->section_header[j].sect_size; i++)
                         {
                             if (sir[i] == '\n')
                             {
