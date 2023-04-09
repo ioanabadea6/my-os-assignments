@@ -28,7 +28,7 @@ void list(const char *path, int dim, char *nume)
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
         {
             snprintf(filePath, 512, "%s/%s", path, entry->d_name);
-            if (stat(filePath, &statbuf) == 0)
+            if (lstat(filePath, &statbuf) == 0)
             {
                 if (nume != NULL)
                 {
@@ -36,9 +36,12 @@ void list(const char *path, int dim, char *nume)
                     {
                         if (dim != 0)
                         {
-                            if (dim < statbuf.st_size && S_ISREG(statbuf.st_mode))
+                            if (dim < statbuf.st_size)
                             {
-                                printf("%s\n", filePath);
+                                if (S_ISREG(statbuf.st_mode))
+                                {
+                                    printf("%s\n", filePath);
+                                }
                             }
                         }
                         else
@@ -51,9 +54,12 @@ void list(const char *path, int dim, char *nume)
                 {
                     if (dim != 0)
                     {
-                        if (dim < statbuf.st_size && S_ISREG(statbuf.st_mode))
+                        if (dim < statbuf.st_size)
                         {
-                            printf("%s\n", filePath);
+                            if (S_ISREG(statbuf.st_mode))
+                            {
+                                printf("%s\n", filePath);
+                            }
                         }
                     }
                     else
@@ -250,7 +256,6 @@ void findall(const char *path)
                     findall(filePath);
                 }
                 else
-                //if (S_ISREG(statbuf.st_mode))
                 {
                     int nr_sec = 0;
                     int fd = -1;
@@ -258,7 +263,7 @@ void findall(const char *path)
                     fd = open(filePath, O_RDONLY);
                     if (fd == -1)
                     {
-                        return;
+                        break;
                     }
 
                     sf *section_file = (sf *)malloc(sizeof(sf));
@@ -270,7 +275,7 @@ void findall(const char *path)
                     if (strcmp(section_file->magic, "rB4K") != 0)
                     {
                         free(section_file);
-                        return;
+                        continue;
                     }
 
                     lseek(fd, -(section_file->header_size), SEEK_END);
@@ -279,7 +284,7 @@ void findall(const char *path)
                     if (section_file->version < 65 || section_file->version > 112)
                     {
                         free(section_file);
-                        return;
+                        continue;
                     }
 
                     read(fd, &section_file->no_of_sections, 1);
@@ -287,11 +292,12 @@ void findall(const char *path)
                     if (section_file->no_of_sections < 2 || section_file->no_of_sections > 19)
                     {
                         free(section_file);
-                        return;
+                        continue;
                     }
 
                     section_file->section_header = (sh *)malloc(sizeof(sh) * section_file->no_of_sections);
 
+                    int ok = 1;
                     for (int i = 0; i < section_file->no_of_sections; i++)
                     {
                         read(fd, section_file->section_header[i].sect_name, 10);
@@ -301,10 +307,17 @@ void findall(const char *path)
                         {
                             free(section_file->section_header);
                             free(section_file);
-                            return;
+                            ok = 0;
+                            ;
+                            break;
                         }
                         read(fd, &section_file->section_header[i].sect_offset, 4);
                         read(fd, &section_file->section_header[i].sect_size, 4);
+                    }
+
+                    if (ok == 0)
+                    {
+                        continue;
                     }
 
                     for (int j = 0; j < section_file->no_of_sections; j++)
@@ -460,14 +473,14 @@ int main(int argc, char **argv)
 
         if (strcmp(argv[1], "list") == 0)
         {
-            char *path, *nume;
-            int dim;
+            char path[1000] = {0};
+            char nume[1000] = {0};
+            int dim = 0;
             int recursive = 0;
             for (int i = 2; i < argc; i++)
             {
                 if (strncmp(argv[i], "path=", 5) == 0)
                 {
-                    path = (char *)malloc(sizeof(char) * (strlen(argv[i]) - 5));
                     strcpy(path, argv[i] + 5);
                 }
                 if (strncmp(argv[i], "size_greater=", 13) == 0)
@@ -476,7 +489,6 @@ int main(int argc, char **argv)
                 }
                 if (strncmp(argv[i], "name_ends_with=", 15) == 0)
                 {
-                    nume = (char *)malloc(sizeof(char) * strlen(argv[i]));
                     strcpy(nume, argv[i] + 15);
                 }
                 if (strcmp(argv[i], "recursive") == 0)
@@ -506,9 +518,6 @@ int main(int argc, char **argv)
             {
                 list(path, dim, nume);
             }
-
-            free(path);
-            free(nume);
         }
 
         if (strcmp(argv[1], "parse") == 0)
@@ -552,7 +561,7 @@ int main(int argc, char **argv)
 
         if (strcmp(argv[1], "findall") == 0 && strncmp(argv[2], "path=", 5) == 0)
         {
-            char *path = (char *)malloc(sizeof(char) * (strlen(argv[2]) - 5));
+            char path[1000] = {0};
             strcpy(path, argv[2] + 5);
             struct stat statbuf1;
             if (lstat(path, &statbuf1) == 0)
@@ -568,7 +577,6 @@ int main(int argc, char **argv)
                     printf("invalid directory path\n");
                 }
             }
-            free(path);
         }
     }
     return 0;
