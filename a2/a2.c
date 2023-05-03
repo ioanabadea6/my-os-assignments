@@ -5,12 +5,55 @@
 #include "a2_helper.h"
 #include <stdlib.h>
 
+#include <semaphore.h>
+#include <pthread.h>
+
+typedef struct {
+    int noThread;
+    sem_t *logSem;
+} TH_STRUCT;
+
+void *thread_function(void *argc){
+    TH_STRUCT *s = (TH_STRUCT*) argc;
+    switch (s->noThread){
+        case 0: 
+                sem_wait(s->logSem);
+                break;
+        case 1: 
+                info(BEGIN, 6, 2);
+                info(END, 6, 2);
+                break;
+        case 2: 
+                info(BEGIN, 6, 3);
+                info(END, 6, 3);
+                break;
+        case 3: 
+                info(BEGIN, 6, 1);  
+                info(BEGIN, 6, 4); 
+                sem_post(s->logSem);           
+                info(END, 6, 4);
+                info(END, 6, 1);
+                break;
+        default:
+                info(BEGIN, 6, 0);
+                info(END, 6, 0);
+                break;
+    }
+    return NULL;
+}
 
 int main(){
     pid_t pid2 = -1, pid3 = -1, pid4 = -1, pid5 = -1, pid6 = -1, pid7 = -1, pid8 = -1;
    
+    sem_t logSem;
+    TH_STRUCT thread[4];
+    pthread_t t6[4];
 
     init();
+
+    if(sem_init(&logSem, 0, 1) != 0){
+        return -1;
+    }
 
     info(BEGIN, 1, 0);
   
@@ -55,6 +98,20 @@ int main(){
         pid6 = fork();
         if(pid6 == 0){
             info(BEGIN, 6, 0);
+
+            for(int i =0;i<4;i++){
+                thread[i].noThread = i;
+                thread[i].logSem = &logSem;
+                if(pthread_create(&t6[i], NULL, thread_function, &thread[i]) != 0){
+                    perror("Error creating thread!");
+                    return -1;
+                }
+            }
+
+            for(int i=0;i<4;i++){
+                pthread_join(t6[i],NULL);
+            }
+
             info(END, 6, 0);
             exit(1);
         }
@@ -77,6 +134,8 @@ int main(){
 
     
     info(END, 1, 0);
+
+    sem_destroy(&logSem);
 
     return 0;
 }
