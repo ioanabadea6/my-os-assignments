@@ -9,7 +9,12 @@
 #include <pthread.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
+sem_t *logSem = NULL;
+sem_t *logSem2 = NULL;
+sem_t *logSem3 = NULL;
+int count = 0;
 
 typedef struct {
     int noThread;
@@ -20,21 +25,24 @@ void *thread_function(void *argc){
     TH_STRUCT *s = (TH_STRUCT*) argc;
     switch (s->noThread){
         case 0: 
-                sem_wait(s->logSem);
+                sem_wait(logSem);
                 break;
         case 1: 
                 info(BEGIN, 6, 2);
                 info(END, 6, 2);
                 break;
         case 2: 
+                sem_wait(logSem);
+                info(BEGIN, 8, 1);
+                info(END, 8, 1);
                 info(BEGIN, 6, 3);
                 info(END, 6, 3);
-                sem_wait(s->logSem);
+                sem_post(logSem2);
                 break;
         case 3: 
                 info(BEGIN, 6, 1);  
                 info(BEGIN, 6, 4); 
-                sem_post(s->logSem);           
+                sem_post(logSem);           
                 info(END, 6, 4);
                 info(END, 6, 1);
                 break;
@@ -50,12 +58,11 @@ void *thread_function2(void *argc){
     TH_STRUCT *s = (TH_STRUCT*) argc;
     switch (s->noThread){
         case 0:
-                for(int i=0;i<6;i++){
-                    sem_wait(s->logSem);
-                }
-                //sem_wait(s->logSem);
-                info(BEGIN, 8, 1);
-                info(END, 8, 1);
+                
+               // info(BEGIN, 8, 1);
+                sem_wait(logSem);
+               // info(END, 8, 1);
+                sem_post(logSem2);
                 break;
         case 1:
                 
@@ -65,11 +72,10 @@ void *thread_function2(void *argc){
                 
                 break;
         case 2:
+                sem_wait(logSem2);
                 info(BEGIN, 8, 2);
                 info(END, 8, 2);
-                for(int i=0;i<6;i++){
-                    sem_post(s->logSem);
-                }
+                
                 break;
         case 3:
                 info(BEGIN, 8, 4);
@@ -82,21 +88,28 @@ void *thread_function2(void *argc){
 
 void *thread_function3(void*argc){
     TH_STRUCT* s = (TH_STRUCT*) argc;
-//    for(int i=0;i<6;i++){
-//        if(s->noThread+1 == 12){
-//            info
-  //      }
+    count = count +1;
+   // info(BEGIN, 2, 12);
+   // if((s->noThread + 1) == 12){
+   //     info(END, 2, 12);
+   //     for(int i=0;i<5;i++){
+   //         sem_wait(logSem3);
+   //     }
+   // }else{
+   //     sem_wait(logSem3);
+        info(BEGIN, 2, s->noThread+1);
+        info(END, 2, s->noThread+1);
+   //     sem_post(logSem3);
    // }
-    info(BEGIN, 2, s->noThread+1);
-    info(END, 2, s->noThread+1);
+ 
     return NULL;
 }
 
 int main(){
     pid_t pid2 = -1, pid3 = -1, pid4 = -1, pid5 = -1, pid6 = -1, pid7 = -1, pid8 = -1;
    
-    sem_t *logSem = NULL;
-    //sem_t *logSem2 = NULL;
+    
+    
     TH_STRUCT thread[4];
     pthread_t t6[4];
     TH_STRUCT thread8[4];
@@ -111,10 +124,15 @@ int main(){
         return -1;
     }
 
-//    logSem2=sem_open("sem2", O_CREAT, 0644, 1);
-//   if(logSem == NULL){
-//        return -1;
-//    }
+    logSem2=sem_open("sem2", O_CREAT, 0644, 1);
+    if(logSem2 == NULL){
+        return -1;
+    }
+
+    logSem3=sem_open("sem3", O_CREAT, 0644, 1);
+    if(logSem3 == NULL){
+        return -1;
+    }
 
     info(BEGIN, 1, 0);
   
@@ -124,7 +142,7 @@ int main(){
 
         for(int i =0;i<42;i++){
             thread2[i].noThread = i;
-            thread2[i].logSem = logSem;
+            thread2[i].logSem = logSem3;
             if(pthread_create(&t2[i], NULL, thread_function3, &thread2[i]) != 0){
                 perror("Error creating thread!");
                 return -1;
@@ -199,7 +217,7 @@ int main(){
 
             for(int i =0;i<4;i++){
                 thread8[i].noThread = i;
-                thread8[i].logSem = logSem;
+                thread8[i].logSem = logSem2;
                 if(pthread_create(&t8[i], NULL, thread_function2, &thread8[i]) != 0){
                     perror("Error creating thread!");
                     return -1;
@@ -224,6 +242,8 @@ int main(){
     info(END, 1, 0);
 
     sem_close(logSem);
+    sem_close(logSem2);
+    sem_close(logSem3);
 
     sem_unlink("sem1");
 
