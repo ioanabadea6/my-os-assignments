@@ -13,7 +13,10 @@
 
 sem_t *logSem = NULL;
 sem_t *logSem2 = NULL;
-sem_t *logSem3 = NULL;
+sem_t logSem3;
+sem_t cond;
+sem_t cond1, cond2;
+
 int count = 0;
 
 typedef struct {
@@ -88,20 +91,20 @@ void *thread_function2(void *argc){
 
 void *thread_function3(void*argc){
     TH_STRUCT* s = (TH_STRUCT*) argc;
-    count = count +1;
-   // info(BEGIN, 2, 12);
-   // if((s->noThread + 1) == 12){
-   //     info(END, 2, 12);
-   //     for(int i=0;i<5;i++){
-   //         sem_wait(logSem3);
-   //     }
-   // }else{
-   //     sem_wait(logSem3);
-        info(BEGIN, 2, s->noThread+1);
-        info(END, 2, s->noThread+1);
-   //     sem_post(logSem3);
-   // }
- 
+    sem_wait(&logSem3);
+
+
+
+    info(BEGIN, 2, s->noThread+1);
+
+
+    info(END, 2, s->noThread+1);
+
+
+
+    sem_post(&logSem3);
+
+    
     return NULL;
 }
 
@@ -129,8 +132,22 @@ int main(){
         return -1;
     }
 
-    logSem3=sem_open("sem3", O_CREAT, 0644, 1);
-    if(logSem3 == NULL){
+    if(sem_init(&logSem3, 0, 6) != 0) {
+        perror("Could not init the semaphore");
+        return -1;
+    }
+
+    if(sem_init(&cond, 0, 1) != 0) {
+        perror("Could not init the semaphore");
+        return -1;
+    }
+
+    if(sem_init(&cond1, 0, 0) != 0) {
+        perror("Could not init the semaphore");
+        return -1;
+    }
+        if(sem_init(&cond2, 0, 0) != 0) {
+        perror("Could not init the semaphore");
         return -1;
     }
 
@@ -142,11 +159,12 @@ int main(){
 
         for(int i =0;i<42;i++){
             thread2[i].noThread = i;
-            thread2[i].logSem = logSem3;
+            thread2[i].logSem = &logSem3;
             if(pthread_create(&t2[i], NULL, thread_function3, &thread2[i]) != 0){
                 perror("Error creating thread!");
                 return -1;
             }
+          
         }
 
         for(int i=0;i<42;i++){
@@ -243,7 +261,10 @@ int main(){
 
     sem_close(logSem);
     sem_close(logSem2);
-    sem_close(logSem3);
+    sem_destroy(&logSem3);
+    sem_destroy(&cond);
+    sem_destroy(&cond1);
+    sem_destroy(&cond2);
 
     sem_unlink("sem1");
 
