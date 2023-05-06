@@ -14,10 +14,8 @@
 sem_t *logSem = NULL;
 sem_t *logSem2 = NULL;
 sem_t logSem3;
-sem_t cond;
-sem_t cond1, cond2;
 
-int count = 0;
+//int count = 0;
 
 typedef struct {
     int noThread;
@@ -92,26 +90,14 @@ void *thread_function2(void *argc){
 void *thread_function3(void*argc){
     TH_STRUCT* s = (TH_STRUCT*) argc;
     sem_wait(&logSem3);
-
-
-
     info(BEGIN, 2, s->noThread+1);
-
-
     info(END, 2, s->noThread+1);
-
-
-
     sem_post(&logSem3);
-
-    
     return NULL;
 }
 
 int main(){
     pid_t pid2 = -1, pid3 = -1, pid4 = -1, pid5 = -1, pid6 = -1, pid7 = -1, pid8 = -1;
-   
-    
     
     TH_STRUCT thread[4];
     pthread_t t6[4];
@@ -133,20 +119,6 @@ int main(){
     }
 
     if(sem_init(&logSem3, 0, 6) != 0) {
-        perror("Could not init the semaphore");
-        return -1;
-    }
-
-    if(sem_init(&cond, 0, 1) != 0) {
-        perror("Could not init the semaphore");
-        return -1;
-    }
-
-    if(sem_init(&cond1, 0, 0) != 0) {
-        perror("Could not init the semaphore");
-        return -1;
-    }
-        if(sem_init(&cond2, 0, 0) != 0) {
         perror("Could not init the semaphore");
         return -1;
     }
@@ -262,13 +234,8 @@ int main(){
     sem_close(logSem);
     sem_close(logSem2);
     sem_destroy(&logSem3);
-    sem_destroy(&cond);
-    sem_destroy(&cond1);
-    sem_destroy(&cond2);
 
     sem_unlink("sem1");
-
-//    sem_close(logSem2);
 
     return 0;
 }
