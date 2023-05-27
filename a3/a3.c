@@ -49,6 +49,8 @@ int main(){
             int fd_file_name = -1;
             volatile char *data2 = NULL;
             int size2;
+            unsigned int offset2 = 0;
+            unsigned int no_of_bytes = 0;
 
             read(fd2, &c, sizeof(c));
             while(c != '!'){
@@ -83,7 +85,7 @@ int main(){
             else if(strcmp((char*)buffer, "WRITE_TO_SHM") == 0){   
                 read(fd2, &offset, sizeof(offset));    
                 read(fd2, &value, sizeof(value));
-                if((offset < 0 || offset > size_shm) || offset+sizeof(value)>size_shm){
+                if(offset < 0 || offset>size_shm|| offset+sizeof(value)>size_shm){
                     write(fd1, "WRITE_TO_SHM!", strlen("WRITE_TO_SHM!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
                 } else{
@@ -108,6 +110,18 @@ int main(){
                 }
                 write(fd1, "MAP_FILE!", strlen("MAP_FILE!"));
                 write(fd1, "SUCCESS!", strlen("SUCCESS!"));
+            }
+            else if(strcmp((char*)buffer, "READ_FROM_FILE_OFFSET") == 0){
+                read(fd2, &offset2, sizeof(offset));
+                read(fd2, &no_of_bytes, sizeof(no_of_bytes));
+                if(offset2 + no_of_bytes > size2 || fd_file_name){
+                    write(fd1, "READ_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
+                    write(fd1, "ERROR!", strlen("ERROR!"));
+                }
+                memcpy((char*)data, (char*)data2+offset2,no_of_bytes);
+                write(fd1, "MAP_FILEREAD_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
+                write(fd1, "SUCCESS!", strlen("SUCCESS!"));
+
             }
             else if(strcmp((char*)buffer, "EXIT") == 0){
                 close(fd_file_name);
