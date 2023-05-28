@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <string.h>
+#include <string.h> 
 #include <sys/mman.h>
 
 #define PIPE1 "RESP_PIPE_95788"
