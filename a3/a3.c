@@ -43,18 +43,16 @@ int main(){
             unsigned int size_shm = 0; 
             unsigned int offset = 0;
             unsigned int value = 0;
-            char file_name[250];
+            
             int fd_file_name = -1;
             char *data2 = NULL;
             int size2;
             unsigned int offset2 = 0;
             unsigned int no_of_bytes = 0;
-            unsigned int section_no = 0;
-            unsigned int offset3 = 0;
-            unsigned int no_of_bytes3 = 0;
 
         for(;;){
             i=0;
+            char file_name[250];
 
             read(fd2, &c, sizeof(c));
             while(c != '!'){
@@ -94,50 +92,55 @@ int main(){
                 if(offset < 0 || offset > size_shm || size_shm < offset + 4){
                     write(fd1, "WRITE_TO_SHM!", strlen("WRITE_TO_SHM!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
+                    return 1;
                 }
                 memcpy(data+offset, &value, sizeof(value));
                 write(fd1, "WRITE_TO_SHM!", strlen("WRITE_TO_SHM!"));
                 write(fd1, "SUCCESS!", strlen("SUCCESS!"));              
             }
             else if(strcmp((char*)buffer, "MAP_FILE")==0){
-                read(fd2, &file_name, strlen(file_name));
-                file_name[strlen(file_name)]='\0';
+                unsigned int size_name = 0;
+                read(fd2, &c, sizeof(c));
+                while(c != '!'){
+                    file_name[size_name]=c;
+                    size_name++;
+                    read(fd2, &c, sizeof(c));
+                }
+               // read(fd2, &file_name, sizeof(char)*250);
+                file_name[size_name]='\0';
+               // printf("%s\n", file_name);
                 fd_file_name = open(file_name, O_RDONLY);
                 if(fd_file_name == -1){
                     write(fd1, "MAP_FILE!", strlen("MAP_FILE!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
+                    return 1;
                 }
                 size2=lseek(fd_file_name, 0, SEEK_END);
                 data2 = (char*)mmap(NULL, size2, PROT_READ, MAP_SHARED, fd_file_name, 0);
                 if(data2 == (void*)-1){
                     write(fd1, "MAP_FILE!", strlen("MAP_FILE!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
+                    return 1;
                 }
                 write(fd1, "MAP_FILE!", strlen("MAP_FILE!"));
                 write(fd1, "SUCCESS!", strlen("SUCCESS!"));
             }
-            else if(strcmp((char*)buffer, "READ_FROM_FILE_OFFSET") == 0){
-                read(fd2, &offset2, sizeof(offset));
-                read(fd2, &no_of_bytes, sizeof(no_of_bytes));
-                if(data2 == (void*)-1 || shmFD == -1 || offset2 + no_of_bytes > size2){
+            else if(strcmp((char*)buffer, "READ_FROM_FILE_OFFSET") == 0){ 
+                read(fd2, &offset2, sizeof(unsigned int));
+                read(fd2, &no_of_bytes, sizeof(unsigned int));
+                if(data2 != (void*)-1 && data != (void*)-1 && (offset2 + no_of_bytes < size2)){
+                  //  printf("da2\n");
+                    memcpy(data, data2+offset2, no_of_bytes);
+                    //printf("da2\n");
+                    write(fd1, "READ_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
+                    write(fd1, "SUCCESS!", strlen("SUCCESS!"));
+                    
+                }
+                else{
                     write(fd1, "READ_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
+                   // printf("da1\n");
                 }
-                int i=0;
-                for(int m=offset;m<offset+no_of_bytes;m++){
-                    data[i]=data2[m];
-                    i++;
-                }
-                write(fd1, "READ_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
-                write(fd1, "SUCCESS!", strlen("SUCCESS!"));
-            }
-            else if(strcmp((char*)buffer, "READ_FROM_FILE_SECTION")==0){
-                read(fd1, &section_no, sizeof(section_no));
-                read(fd1, &offset3, sizeof(offset));
-                read(fd1, &no_of_bytes3, sizeof(no_of_bytes3));
-               //  if(section_no < 0)
-                write(fd1, "READ_FROM_FILE_SECTION!", strlen("READ_FROM_FILE_SECTION!"));
-                write(fd1, "SUCCESS!", strlen("SUCCESS!"));
             }
             else if(strcmp((char*)buffer, "EXIT") == 0){   
                 munmap((void*)data, sizeof(char));
