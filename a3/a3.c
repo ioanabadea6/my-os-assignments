@@ -35,22 +35,26 @@ int main(){
 
         write(fd1, "HELLO!", strlen("HELLO!"));
 
-      
-        for(;;){
             unsigned char c;
             unsigned char buffer[250];
             unsigned int i=0;
             int shmFD=0;
-            volatile char *data = NULL;
-            unsigned int size_shm = 4899052; 
+            char *data = NULL;
+            unsigned int size_shm = 0; 
             unsigned int offset = 0;
             unsigned int value = 0;
             char file_name[250];
             int fd_file_name = -1;
-            volatile char *data2 = NULL;
+            char *data2 = NULL;
             int size2;
             unsigned int offset2 = 0;
             unsigned int no_of_bytes = 0;
+            unsigned int section_no = 0;
+            unsigned int offset3 = 0;
+            unsigned int no_of_bytes3 = 0;
+
+        for(;;){
+            i=0;
 
             read(fd2, &c, sizeof(c));
             while(c != '!'){
@@ -67,32 +71,33 @@ int main(){
                 write(fd1, &nr, sizeof(nr));
             }
             else if(strcmp((char*)buffer,"CREATE_SHM") == 0){
+                read(fd2, &size_shm, sizeof(unsigned int));
                 shmFD = shm_open("/iljVHa", O_CREAT | O_RDWR, 0664);
                 if(shmFD == -1){
                     write(fd1, "CREATE_SHM!", strlen("CREATE_SHM!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
+                    return 1;
                 }
                 ftruncate(shmFD, size_shm);
-                data = (volatile char*)mmap(NULL, size_shm, PROT_READ | PROT_WRITE, MAP_SHARED, shmFD, 0);
+                data = (char*)mmap(0, size_shm, PROT_READ | PROT_WRITE, MAP_SHARED, shmFD, 0);
                 if(data == (void*)-1){
                     write(fd1, "CREATE_SHM!", strlen("CREATE_SHM!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
+                    return 1;
                 }
                 write(fd1, "CREATE_SHM!", strlen("CREATE_SHM!"));
                 write(fd1, "SUCCESS!", strlen("SUCCESS!"));
-
             }
-            else if(strcmp((char*)buffer, "WRITE_TO_SHM") == 0){   
-                read(fd2, &offset, sizeof(offset));    
+            else if(strcmp((char*)buffer, "WRITE_TO_SHM") == 0){  
+                read(fd2, &offset, sizeof(offset)); 
                 read(fd2, &value, sizeof(value));
-                if(offset < 0 || offset>size_shm|| offset+sizeof(value)>size_shm){
+                if(offset < 0 || offset > size_shm || size_shm < offset + 4){
                     write(fd1, "WRITE_TO_SHM!", strlen("WRITE_TO_SHM!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
-                } else{
-                memcpy((char*)&data[offset], &value, sizeof(value));
+                }
+                memcpy(data+offset, &value, sizeof(value));
                 write(fd1, "WRITE_TO_SHM!", strlen("WRITE_TO_SHM!"));
-                write(fd1, "SUCCESS!", strlen("SUCCESS!"));}
-                
+                write(fd1, "SUCCESS!", strlen("SUCCESS!"));              
             }
             else if(strcmp((char*)buffer, "MAP_FILE")==0){
                 read(fd2, &file_name, strlen(file_name));
@@ -114,29 +119,42 @@ int main(){
             else if(strcmp((char*)buffer, "READ_FROM_FILE_OFFSET") == 0){
                 read(fd2, &offset2, sizeof(offset));
                 read(fd2, &no_of_bytes, sizeof(no_of_bytes));
-                if(offset2 + no_of_bytes > size2 || fd_file_name){
+                if(data2 == (void*)-1 || shmFD == -1 || offset2 + no_of_bytes > size2){
                     write(fd1, "READ_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
                     write(fd1, "ERROR!", strlen("ERROR!"));
                 }
-                memcpy((char*)data, (char*)data2+offset2,no_of_bytes);
-                write(fd1, "MAP_FILEREAD_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
+                int i=0;
+                for(int m=offset;m<offset+no_of_bytes;m++){
+                    data[i]=data2[m];
+                    i++;
+                }
+                write(fd1, "READ_FROM_FILE_OFFSET!", strlen("READ_FROM_FILE_OFFSET!"));
                 write(fd1, "SUCCESS!", strlen("SUCCESS!"));
-
             }
-            else if(strcmp((char*)buffer, "EXIT") == 0){
-                close(fd_file_name);
-                munmap((void*)data, size_shm);
-                munmap((void*)data2, size2);
+            else if(strcmp((char*)buffer, "READ_FROM_FILE_SECTION")==0){
+                read(fd1, &section_no, sizeof(section_no));
+                read(fd1, &offset3, sizeof(offset));
+                read(fd1, &no_of_bytes3, sizeof(no_of_bytes3));
+               //  if(section_no < 0)
+                write(fd1, "READ_FROM_FILE_SECTION!", strlen("READ_FROM_FILE_SECTION!"));
+                write(fd1, "SUCCESS!", strlen("SUCCESS!"));
+            }
+            else if(strcmp((char*)buffer, "EXIT") == 0){   
+                munmap((void*)data, sizeof(char));
+                munmap((void*)data2, sizeof(char));
                 data = NULL;
                 data2 = NULL;
                 close(fd2);
                 close(fd1);
+                close(fd_file_name);
                 unlink(PIPE1);
                 shm_unlink("/iljVHa");
             }
             else{
+
                 break;
             }
+
         }
     }
 
